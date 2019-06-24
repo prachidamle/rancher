@@ -20,6 +20,19 @@ def test_create_cluster_template_with_revision(admin_mc, remove_resource):
     assert template_reloaded.links.revisions is not None
 
 
+def test_standard_user_templates(admin_mc, remove_resource, user_factory):
+    user = user_factory()
+    remove_resource(user)
+    user_client = user.client
+
+    template_name = random_str()
+    cluster_template = \
+        user_client.create_cluster_template(
+                                         name=template_name,
+                                         description="user template")
+    remove_resource(cluster_template)
+
+
 def test_check_default_revision(admin_mc, remove_resource):
     cluster_template = create_cluster_template(admin_mc, remove_resource, [])
     templateId = cluster_template.id
