@@ -7,6 +7,7 @@ import (
 	"github.com/rancher/norman/types"
 	gaccess "github.com/rancher/rancher/pkg/api/norman/customization/globalnamespaceaccess"
 	v32 "github.com/rancher/rancher/pkg/apis/management.cattle.io/v3"
+	"github.com/rancher/rancher/pkg/auth/requests"
 	"github.com/rancher/rancher/pkg/catalog/manager"
 	mgmtclient "github.com/rancher/rancher/pkg/client/generated/management/v3"
 	"github.com/rancher/rancher/pkg/clustermanager"
@@ -35,6 +36,7 @@ type ActionHandler struct {
 	CisConfigClient               v3.CisConfigInterface
 	CisConfigLister               v3.CisConfigLister
 	TokenClient                   v3.TokenInterface
+	Auth                          requests.Authenticator
 }
 
 func (a ActionHandler) ClusterActionHandler(actionName string, action *types.Action, apiContext *types.APIContext) error {
@@ -121,15 +123,22 @@ func (a ActionHandler) ClusterActionHandler(actionName string, action *types.Act
 func (a ActionHandler) ensureClusterToken(clusterID string, apiContext *types.APIContext) (string, error) {
 	userName := a.UserMgr.GetUser(apiContext)
 	tokenNamePrefix := fmt.Sprintf("kubeconfig-%s", userName)
-
-	token, err := a.UserMgr.EnsureClusterToken(clusterID, tokenNamePrefix, "Kubeconfig token", "kubeconfig", userName, nil, true)
+	authToken, err := a.Auth.TokenFromRequest(apiContext.Request)
+	if err != nil {
+		return "", err
+	}
+	token, err := a.UserMgr.EnsureClusterToken(clusterID, tokenNamePrefix, "Kubeconfig token", "kubeconfig", userName, authToken.AuthProvider, nil, true)
 	return token, err
 }
 
 func (a ActionHandler) ensureToken(apiContext *types.APIContext) (string, error) {
 	userName := a.UserMgr.GetUser(apiContext)
+	authToken, err := a.Auth.TokenFromRequest(apiContext.Request)
+	if err != nil {
+		return "", err
+	}
 	tokenNamePrefix := fmt.Sprintf("kubeconfig-%s", userName)
-	token, err := a.UserMgr.EnsureToken(tokenNamePrefix, "Kubeconfig token", "kubeconfig", userName, nil, true)
+	token, err := a.UserMgr.EnsureToken(tokenNamePrefix, "Kubeconfig token", "kubeconfig", userName, authToken.AuthProvider, nil, true)
 	return token, err
 }
 

@@ -110,7 +110,6 @@ func (a *tokenAuthenticator) Authenticate(req *http.Request) (*AuthenticatorResp
 	if token.ClusterName != "" && token.ClusterName != a.clusterRouter(req) {
 		return nil, errors.Wrapf(ErrMustAuthenticate, "clusterID does not match")
 	}
-	logrus.Infof("request token %v", token)
 
 	attribs, err := a.userAttributeLister.Get("", token.UserID)
 	if err != nil && !apierrors.IsNotFound(err) {
@@ -157,32 +156,46 @@ func (a *tokenAuthenticator) Authenticate(req *http.Request) (*AuthenticatorResp
 	authResp.User = token.UserID
 	authResp.UserPrincipal = token.UserPrincipal.Name
 	authResp.Groups = groups
+	authResp.Extras = getUserExtraInfo(token, u, attribs)
+	logrus.Infof("Extras returned %v", authResp.Extras)
 
-	if attribs != nil {
-		if strings.EqualFold(token.AuthProvider, "local") || token.AuthProvider == "" {
+	return authResp, nil
+}
+
+func getUserExtraInfo(token *v3.Token, u *v3.User, attribs *v3.UserAttribute) map[string][]string {
+	var readFromToken bool
+	extraInfo := make(map[string][]string)
+
+	if attribs != nil && attribs.Extra != nil && len(attribs.Extra) != 0 {
+		if token.AuthProvider == "" {
 			//gather all extraInfo for all external auth providers present in the userAttributes
-			extraInfo := make(map[string][]string)
-			for provider, extra := range attribs.Extra {
-				if provider != "local" {
-					for key, value := range extra {
-						extraInfo[key] = append(extraInfo[key], value...)
-					}
+			for _, extra := range attribs.Extra {
+				for key, value := range extra {
+					extraInfo[key] = append(extraInfo[key], value...)
 				}
 			}
-			authResp.Extras = extraInfo
 		} else {
-			//non-local authProvider is set in token
+			//authProvider is set in token
 			var ok bool
-			authResp.Extras, ok = attribs.Extra[token.AuthProvider]
+			extraInfo, ok = attribs.Extra[token.AuthProvider]
 			if !ok {
-				extraFromProvider := providers.GetUserExtraAttributes(token.AuthProvider, token.UserPrincipal)
-				if extraFromProvider != nil {
-					authResp.Extras = extraFromProvider
-				}
+				readFromToken = true
 			}
 		}
+		logrus.Infof("Extras returned from Attribs %v", extraInfo)
+	} else {
+		readFromToken = true
 	}
-	return authResp, nil
+
+	if readFromToken {
+		extraInfo = providers.GetUserExtraAttributes(token.AuthProvider, token.UserPrincipal)
+		//if principalid is not set in extra, read from user
+		if extraInfo != nil && len(extraInfo["principalid"]) == 0 {
+			extraInfo["principalid"] = u.PrincipalIDs
+		}
+	}
+
+	return extraInfo
 }
 
 func (a *tokenAuthenticator) TokenFromRequest(req *http.Request) (*v3.Token, error) {
