@@ -563,7 +563,7 @@ func (m *Manager) EnsureAndGetUserAttribute(userID string) (*v3.UserAttribute, b
 			},
 		},
 		GroupPrincipals: map[string]v32.Principals{},
-		Extra:           map[string]map[string][]string{},
+		ExtraByProvider: map[string]map[string][]string{},
 		LastRefresh:     "",
 		NeedsRefresh:    false,
 	}
@@ -582,7 +582,7 @@ func (m *Manager) UserAttributeCreateOrUpdate(userID, provider string, groupPrin
 	}
 	if needCreate {
 		attribs.GroupPrincipals[provider] = v32.Principals{Items: groupPrincipals}
-		attribs.Extra[provider] = userExtraInfo
+		attribs.ExtraByProvider[provider] = userExtraInfo
 		_, err := m.userAttributes.Create(attribs)
 		if err != nil {
 			return err
@@ -592,11 +592,11 @@ func (m *Manager) UserAttributeCreateOrUpdate(userID, provider string, groupPrin
 
 	// Exists, just update if necessary
 	if m.UserAttributeChanged(attribs, provider, userExtraInfo, groupPrincipals) {
-		if attribs.Extra == nil {
-			attribs.Extra = make(map[string]map[string][]string)
+		if attribs.ExtraByProvider == nil {
+			attribs.ExtraByProvider = make(map[string]map[string][]string)
 		}
 		attribs.GroupPrincipals[provider] = v32.Principals{Items: groupPrincipals}
-		attribs.Extra[provider] = userExtraInfo
+		attribs.ExtraByProvider[provider] = userExtraInfo
 		_, err := m.userAttributes.Update(attribs)
 		if err != nil {
 			return err
@@ -628,10 +628,10 @@ func (m *Manager) UserAttributeChanged(attribs *v32.UserAttribute, provider stri
 		}
 	}
 
-	if attribs.Extra == nil && extraInfo != nil {
+	if attribs.ExtraByProvider == nil && extraInfo != nil {
 		return true
 	}
-	if !reflect.DeepEqual(attribs.Extra[provider], extraInfo) {
+	if !reflect.DeepEqual(attribs.ExtraByProvider[provider], extraInfo) {
 		return true
 	}
 

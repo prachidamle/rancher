@@ -356,10 +356,10 @@ func (o *OpenIDCProvider) IsThisUserMe(me v3.Principal, other v3.Principal) bool
 func (o *OpenIDCProvider) GetUserExtraAttributes(userPrincipal v3.Principal) map[string][]string {
 	extras := make(map[string][]string)
 	if userPrincipal.Name != "" {
-		extras["principalid"] = []string{userPrincipal.Name}
+		extras[common.UserAttributePrincipalID] = []string{userPrincipal.Name}
 	}
 	if userPrincipal.LoginName != "" {
-		extras["username"] = []string{userPrincipal.LoginName}
+		extras[common.UserAttributeUserName] = []string{userPrincipal.LoginName}
 	}
 	return extras
 }

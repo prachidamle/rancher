@@ -222,19 +222,19 @@ func (m *userManager) CheckAccess(accessMode string, allowedPrincipalIDs []strin
 }
 
 // creates tokens with 0 ttl and returns token in 'token.Name:token.Token' format
-func (m *userManager) EnsureToken(tokenName, description, kind, userName, authProvider string, ttl *int64, randomize bool) (string, error) {
-	return m.EnsureClusterToken("", tokenName, description, kind, userName, authProvider, ttl, randomize)
+func (m *userManager) EnsureToken(input user.TokenInput) (string, error) {
+	return m.EnsureClusterToken("", input)
 }
 
-func (m *userManager) EnsureClusterToken(clusterName, tokenName, description, kind, userName, authProvider string, ttl *int64, randomize bool) (string, error) {
-	if strings.HasPrefix(tokenName, "token-") {
+func (m *userManager) EnsureClusterToken(clusterName string, input user.TokenInput) (string, error) {
+	if strings.HasPrefix(input.TokenName, "token-") {
 		return "", errors.New("token names can't start with token-")
 	}
 
 	var err error
 	var token *v3.Token
-	if !randomize {
-		token, err = m.tokenLister.Get("", tokenName)
+	if !input.Randomize {
+		token, err = m.tokenLister.Get("", input.TokenName)
 		if err != nil && !apierrors.IsNotFound(err) {
 			return "", err
 		}
@@ -252,32 +252,32 @@ func (m *userManager) EnsureClusterToken(clusterName, tokenName, description, ki
 
 	token = &v3.Token{
 		ObjectMeta: v1.ObjectMeta{
-			Name: tokenName,
+			Name: input.TokenName,
 			Labels: map[string]string{
-				tokens.UserIDLabel:    userName,
-				tokens.TokenKindLabel: kind,
+				tokens.UserIDLabel:    input.UserName,
+				tokens.TokenKindLabel: input.Kind,
 			},
 		},
 		TTLMillis:    0,
-		Description:  description,
-		UserID:       userName,
-		AuthProvider: authProvider,
+		Description:  input.Description,
+		UserID:       input.UserName,
+		AuthProvider: input.AuthProvider,
 		IsDerived:    true,
 		Token:        key,
 		ClusterName:  clusterName,
 	}
-	if ttl != nil {
-		token.TTLMillis = *ttl
+	if input.TTL != nil {
+		token.TTLMillis = *input.TTL
 	}
-	if randomize {
+	if input.Randomize {
 		token.ObjectMeta.Name = ""
-		token.ObjectMeta.GenerateName = tokenName
+		token.ObjectMeta.GenerateName = input.TokenName
 	}
 	err = tokens.ConvertTokenKeyToHash(token)
 	if err != nil {
 		return "", err
 	}
-	logrus.Infof("Creating token for user %v", userName)
+	logrus.Infof("Creating token for user %v", input.UserName)
 	token, err = m.tokens.Create(token)
 	if err != nil && !apierrors.IsAlreadyExists(err) {
 		return "", err
@@ -294,7 +294,16 @@ func (m *userManager) newTokenForKubeconfig(clusterName, tokenName, description,
 
 	ttlMilli := tokenTTL.Milliseconds()
 	logrus.Infof("Creating token for user %v", userName)
-	key, err := m.EnsureClusterToken(clusterName, tokenName, description, kind, userName, authProvider, &ttlMilli, false)
+	input := user.TokenInput{
+		TokenName:    tokenName,
+		Description:  description,
+		Kind:         kind,
+		UserName:     userName,
+		AuthProvider: authProvider,
+		TTL:          &ttlMilli,
+		Randomize:    false,
+	}
+	key, err := m.EnsureClusterToken(clusterName, input)
 	if err != nil {
 		return "", err
 	}

@@ -9,6 +9,7 @@ import (
 	"github.com/rancher/norman/httperror"
 	"github.com/rancher/rancher/pkg/auth/providerrefresh"
 	"github.com/rancher/rancher/pkg/auth/providers"
+	"github.com/rancher/rancher/pkg/auth/providers/common"
 	"github.com/rancher/rancher/pkg/auth/tokens"
 	v3 "github.com/rancher/rancher/pkg/generated/norman/management.cattle.io/v3"
 	"github.com/rancher/rancher/pkg/types/config"
@@ -157,42 +158,34 @@ func (a *tokenAuthenticator) Authenticate(req *http.Request) (*AuthenticatorResp
 	authResp.UserPrincipal = token.UserPrincipal.Name
 	authResp.Groups = groups
 	authResp.Extras = getUserExtraInfo(token, u, attribs)
-	logrus.Infof("Extras returned %v", authResp.Extras)
+	logrus.Debugf("Extras returned %v", authResp.Extras)
 
 	return authResp, nil
 }
 
 func getUserExtraInfo(token *v3.Token, u *v3.User, attribs *v3.UserAttribute) map[string][]string {
-	var readFromToken bool
 	extraInfo := make(map[string][]string)
 
-	if attribs != nil && attribs.Extra != nil && len(attribs.Extra) != 0 {
-		if token.AuthProvider == "" {
+	if attribs != nil && attribs.ExtraByProvider != nil && len(attribs.ExtraByProvider) != 0 {
+		if token.AuthProvider == "local" || token.AuthProvider == "" {
 			//gather all extraInfo for all external auth providers present in the userAttributes
-			for _, extra := range attribs.Extra {
+			for _, extra := range attribs.ExtraByProvider {
 				for key, value := range extra {
 					extraInfo[key] = append(extraInfo[key], value...)
 				}
 			}
-		} else {
-			//authProvider is set in token
-			var ok bool
-			extraInfo, ok = attribs.Extra[token.AuthProvider]
-			if !ok {
-				readFromToken = true
-			}
+			return extraInfo
 		}
-		logrus.Infof("Extras returned from Attribs %v", extraInfo)
-	} else {
-		readFromToken = true
+		//authProvider is set in token
+		if extraInfo, ok := attribs.ExtraByProvider[token.AuthProvider]; ok {
+			return extraInfo
+		}
 	}
 
-	if readFromToken {
-		extraInfo = providers.GetUserExtraAttributes(token.AuthProvider, token.UserPrincipal)
-		//if principalid is not set in extra, read from user
-		if extraInfo != nil && len(extraInfo["principalid"]) == 0 {
-			extraInfo["principalid"] = u.PrincipalIDs
-		}
+	extraInfo = providers.GetUserExtraAttributes(token.AuthProvider, token.UserPrincipal)
+	//if principalid is not set in extra, read from user
+	if extraInfo != nil && len(extraInfo[common.UserAttributePrincipalID]) == 0 {
+		extraInfo[common.UserAttributePrincipalID] = u.PrincipalIDs
 	}
 
 	return extraInfo
