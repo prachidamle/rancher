@@ -7,13 +7,14 @@ import (
 )
 
 type TokenInput struct {
-	TokenName    string
-	Description  string
-	Kind         string
-	UserName     string
-	AuthProvider string
-	TTL          *int64
-	Randomize    bool
+	TokenName     string
+	Description   string
+	Kind          string
+	UserName      string
+	AuthProvider  string
+	TTL           *int64
+	Randomize     bool
+	UserPrincipal v3.Principal
 }
 
 type Manager interface {
@@ -27,5 +28,5 @@ type Manager interface {
 	SetPrincipalOnCurrentUserByUserID(userID string, principal v3.Principal) (*v3.User, error)
 	CreateNewUserClusterRoleBinding(userName string, userUID apitypes.UID) error
 	GetUserByPrincipalID(principalName string) (*v3.User, error)
-	GetKubeconfigToken(clusterName, tokenName, description, kind, userName, authProvider string) (*v3.Token, string, error)
+	GetKubeconfigToken(clusterName, tokenName, description, kind, userName, authProvider string, userPrincipal v3.Principal) (*v3.Token, string, error)
 }

@@ -184,8 +184,13 @@ func getUserExtraInfo(token *v3.Token, u *v3.User, attribs *v3.UserAttribute) ma
 
 	extraInfo = providers.GetUserExtraAttributes(token.AuthProvider, token.UserPrincipal)
 	//if principalid is not set in extra, read from user
-	if extraInfo != nil && len(extraInfo[common.UserAttributePrincipalID]) == 0 {
-		extraInfo[common.UserAttributePrincipalID] = u.PrincipalIDs
+	if extraInfo != nil {
+		if len(extraInfo[common.UserAttributePrincipalID]) == 0 {
+			extraInfo[common.UserAttributePrincipalID] = u.PrincipalIDs
+		}
+		if len(extraInfo[common.UserAttributeUserName]) == 0 {
+			extraInfo[common.UserAttributeUserName] = []string{u.DisplayName}
+		}
 	}
 
 	return extraInfo

@@ -128,13 +128,14 @@ func (a ActionHandler) ensureClusterToken(clusterID string, apiContext *types.AP
 		return "", err
 	}
 	input := user.TokenInput{
-		TokenName:    tokenNamePrefix,
-		Description:  "Kubeconfig token",
-		Kind:         "kubeconfig",
-		UserName:     userName,
-		AuthProvider: authToken.AuthProvider,
-		TTL:          nil,
-		Randomize:    true,
+		TokenName:     tokenNamePrefix,
+		Description:   "Kubeconfig token",
+		Kind:          "kubeconfig",
+		UserName:      userName,
+		AuthProvider:  authToken.AuthProvider,
+		TTL:           nil,
+		Randomize:     true,
+		UserPrincipal: authToken.UserPrincipal,
 	}
 	token, err := a.UserMgr.EnsureClusterToken(clusterID, input)
 	return token, err
@@ -148,13 +149,14 @@ func (a ActionHandler) ensureToken(apiContext *types.APIContext) (string, error)
 	}
 	tokenNamePrefix := fmt.Sprintf("kubeconfig-%s", userName)
 	input := user.TokenInput{
-		TokenName:    tokenNamePrefix,
-		Description:  "Kubeconfig token",
-		Kind:         "kubeconfig",
-		UserName:     userName,
-		AuthProvider: authToken.AuthProvider,
-		TTL:          nil,
-		Randomize:    true,
+		TokenName:     tokenNamePrefix,
+		Description:   "Kubeconfig token",
+		Kind:          "kubeconfig",
+		UserName:      userName,
+		AuthProvider:  authToken.AuthProvider,
+		TTL:           nil,
+		Randomize:     true,
+		UserPrincipal: authToken.UserPrincipal,
 	}
 	token, err := a.UserMgr.EnsureToken(input)
 	return token, err

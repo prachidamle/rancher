@@ -204,7 +204,7 @@ func (h *loginHandler) createLoginToken(request *types.APIContext) (v3.Token, st
 	}
 
 	if strings.HasPrefix(responseType, tokens.KubeconfigResponseType) {
-		token, tokenValue, err := tokens.GetKubeConfigToken(currUser.Name, userPrincipal.Provider, responseType, h.userMGR)
+		token, tokenValue, err := tokens.GetKubeConfigToken(currUser.Name, userPrincipal.Provider, responseType, h.userMGR, userPrincipal)
 		if err != nil {
 			return v3.Token{}, "", "", err
 		}

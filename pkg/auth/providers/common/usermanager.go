@@ -258,13 +258,14 @@ func (m *userManager) EnsureClusterToken(clusterName string, input user.TokenInp
 				tokens.TokenKindLabel: input.Kind,
 			},
 		},
-		TTLMillis:    0,
-		Description:  input.Description,
-		UserID:       input.UserName,
-		AuthProvider: input.AuthProvider,
-		IsDerived:    true,
-		Token:        key,
-		ClusterName:  clusterName,
+		TTLMillis:     0,
+		Description:   input.Description,
+		UserID:        input.UserName,
+		AuthProvider:  input.AuthProvider,
+		UserPrincipal: input.UserPrincipal,
+		IsDerived:     true,
+		Token:         key,
+		ClusterName:   clusterName,
 	}
 	if input.TTL != nil {
 		token.TTLMillis = *input.TTL
@@ -286,7 +287,7 @@ func (m *userManager) EnsureClusterToken(clusterName string, input user.TokenInp
 	return token.Name + ":" + key, nil
 }
 
-func (m *userManager) newTokenForKubeconfig(clusterName, tokenName, description, kind, userName, authProvider string, ttl time.Duration) (string, error) {
+func (m *userManager) newTokenForKubeconfig(clusterName, tokenName, description, kind, userName, authProvider string, ttl time.Duration, userPrincipal v3.Principal) (string, error) {
 	tokenTTL, err := tokens.ValidateMaxTTL(ttl)
 	if err != nil {
 		return "", fmt.Errorf("failed to validate token ttl %v", err)
@@ -295,13 +296,14 @@ func (m *userManager) newTokenForKubeconfig(clusterName, tokenName, description,
 	ttlMilli := tokenTTL.Milliseconds()
 	logrus.Infof("Creating token for user %v", userName)
 	input := user.TokenInput{
-		TokenName:    tokenName,
-		Description:  description,
-		Kind:         kind,
-		UserName:     userName,
-		AuthProvider: authProvider,
-		TTL:          &ttlMilli,
-		Randomize:    false,
+		TokenName:     tokenName,
+		Description:   description,
+		Kind:          kind,
+		UserName:      userName,
+		AuthProvider:  authProvider,
+		TTL:           &ttlMilli,
+		Randomize:     false,
+		UserPrincipal: userPrincipal,
 	}
 	key, err := m.EnsureClusterToken(clusterName, input)
 	if err != nil {
@@ -311,14 +313,14 @@ func (m *userManager) newTokenForKubeconfig(clusterName, tokenName, description,
 }
 
 // creates kubeconfig tokens with KubeconfigTokenTTL and regenerates if existing token expired
-func (m *userManager) GetKubeconfigToken(clusterName, tokenName, description, kind, userName, authProvider string) (*v3.Token, string, error) {
+func (m *userManager) GetKubeconfigToken(clusterName, tokenName, description, kind, userName, authProvider string, userPrincipal v3.Principal) (*v3.Token, string, error) {
 
 	tokenTTL, err := tokens.ParseTokenTTL(settings.KubeconfigTokenTTLMinutes.Get())
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to parse setting [%s]: %v", settings.KubeconfigTokenTTLMinutes.Name, err)
 	}
 
-	fullCreatedToken, err := m.newTokenForKubeconfig(clusterName, tokenName, description, kind, userName, authProvider, tokenTTL)
+	fullCreatedToken, err := m.newTokenForKubeconfig(clusterName, tokenName, description, kind, userName, authProvider, tokenTTL, userPrincipal)
 	if err != nil {
 		return nil, "", err
 	}
